@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 运行数据（对话记录等，不入库）
+data/
+*.log
+
+# 模型文件（体积大，绝不入库）
+*.gguf
+*.bin
+models/
+
+# 环境变量与密钥
+.env
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store

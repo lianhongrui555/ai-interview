@@ -1,0 +1,4 @@
+# 本项目依赖
+# 说明：使用 Ollama 的本地 HTTP API，因此只需一个 HTTP 客户端库
+
+requests>=2.31.0
