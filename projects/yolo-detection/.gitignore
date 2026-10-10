@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.ultralytics/
+.matplotlib/
+*.log
+**/weights/last.pt

@@ -1,0 +1,15 @@
+# 使用支持 RTX 50 系列显卡的 CUDA 12.8 下载源。
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+# 训练和推理所需的 GPU 版 PyTorch。
+torch==2.11.0+cu128
+torchvision==0.26.0+cu128
+
+# 提供 YOLO 模型的训练和推理接口。
+ultralytics==8.4.171
+
+# 负责读取图片、处理摄像头画面和绘制检测框。
+opencv-python==5.0.0.93
+
+# 提供浏览器实时检测页面和接口。
+flask==3.1.3

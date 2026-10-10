@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>YOLO V2 实时目标检测</title>
+    <style>
+        /* 让页面所有元素的宽高计算更符合直觉。 */
+        * {
+            box-sizing: border-box;
+        }
+
+        /* 设置页面整体背景和文字样式。 */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: #edf4ff;
+            background:
+                radial-gradient(circle at 20% 0%, #173d72 0, transparent 36%),
+                linear-gradient(145deg, #07101e, #0b1628 55%, #081321);
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+
+        /* 将主要页面内容放在居中容器中。 */
+        .page {
+            width: min(1120px, 94vw);
+            margin: 0 auto;
+            padding: 32px 0 40px;
+        }
+
+        /* 设置标题样式。 */
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(26px, 4vw, 42px);
+            letter-spacing: 0.03em;
+        }
+
+        /* 设置副标题样式。 */
+        .subtitle {
+            margin: 0 0 24px;
+            color: #9fb5d5;
+        }
+
+        /* 创建摄像头和检测框的共同舞台。 */
+        .stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border: 1px solid #2a4770;
+            border-radius: 18px;
+            background: #030811;
+            box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+        }
+
+        /* 让摄像头画面和画布完全覆盖舞台。 */
+        #video,
+        #overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 摄像头画面保持比例，不裁掉内容。 */
+        #video {
+            object-fit: contain;
+            background: #030811;
+        }
+
+        /* 检测框画布浮在视频上方。 */
+        #overlay {
+            pointer-events: none;
+        }
+
+        /* 居中显示摄像头启动前的提示。 */
+        .placeholder {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            color: #87a2c7;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(8, 20, 38, 0.94), rgba(5, 12, 24, 0.98));
+        }
+
+        /* 创建底部控制栏。 */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        /* 设置按钮的基础样式。 */
+        button {
+            border: 0;
+            border-radius: 11px;
+            padding: 11px 18px;
+            color: white;
+            background: #2168db;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        /* 鼠标经过按钮时轻微抬起。 */
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        /* 禁用按钮时降低透明度。 */
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.42;
+        }
+
+        /* 为停止按钮使用另一种颜色。 */
+        #stopButton {
+            background: #b94444;
+        }
+
+        /* 显示服务状态和推理耗时。 */
+        .status {
+            margin-left: auto;
+            color: #a7bddc;
+            font-size: 14px;
+        }
+
+        /* 在窄屏上让状态信息独占一行。 */
+        @media (max-width: 700px) {
+            .status {
+                width: 100%;
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <h1>YOLO V2 实时目标检测</h1>
+        <p class="subtitle">YOLO11s + 512 输入尺寸：准确率更高，单帧响应更稳定。视频不会上传到互联网。</p>
+
+        <section class="stage" id="stage">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <div class="placeholder" id="placeholder">
+                点击“启动摄像头”，然后在浏览器提示中选择“允许”
+            </div>
+        </section>
+
+        <div class="controls">
+            <button id="startButton">启动摄像头</button>
+            <button id="stopButton" disabled>停止摄像头</button>
+            <div class="status" id="status">服务准备中...</div>
+        </div>
+    </main>
+
+    <script>
+        // 取得视频元素。
+        const video = document.getElementById("video");
+
+        // 取得检测框画布。
+        const overlay = document.getElementById("overlay");
+
+        // 取得画布的二维绘图环境。
+        const context = overlay.getContext("2d");
+
+        // 取得启动和停止按钮。
+        const startButton = document.getElementById("startButton");
+        const stopButton = document.getElementById("stopButton");
+
+        // 取得状态文字元素。
+        const statusText = document.getElementById("status");
+
+        // 取得摄像头启动前的提示层。
+        const placeholder = document.getElementById("placeholder");
+
+        // 保存当前摄像头数据流。
+        let stream = null;
+
+        // 记录检测循环是否应该继续运行。
+        let running = false;
+
+        // 防止上一帧还没有处理完时重复发送下一帧。
+        let processing = false;
+
+        // 记录最近一次推理耗时。
+        let lastInferenceMs = 0;
+
+        // 更新页面状态文字。
+        function setStatus(message) {
+            statusText.textContent = message;
+        }
+
+        // 根据视频真实尺寸调整画布和舞台比例。
+        function resizeOverlay() {
+            // 如果没有读到视频尺寸，就不继续调整。
+            if (!video.videoWidth || !video.videoHeight) {
+                return;
+            }
+
+            // 设置画布内部坐标与视频真实像素一一对应。
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+
+            // 让舞台保持与摄像头相同的宽高比。
+            document.getElementById("stage").style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+        }
+
+        // 在画布上画出模型返回的检测框。
+        function drawBoxes(result) {
+            // 确保画布尺寸与当前视频一致。
+            resizeOverlay();
+
+            // 清空上一帧留下的检测框。
+            context.clearRect(0, 0, overlay.width, overlay.height);
+
+            // 计算模型输入图片到当前视频画面的缩放比例。
+            const scaleX = overlay.width / result.image_width;
+            const scaleY = overlay.height / result.image_height;
+
+            // 设置检测框文字样式。
+            context.font = `${Math.max(14, overlay.width / 52)}px "Microsoft YaHei", sans-serif`;
+            context.textBaseline = "bottom";
+            context.lineJoin = "round";
+
+            // 逐个绘制模型返回的检测框。
+            for (const box of result.boxes) {
+                // 换算四个角的坐标。
+                const x1 = box.x1 * scaleX;
+                const y1 = box.y1 * scaleY;
+                const x2 = box.x2 * scaleX;
+                const y2 = box.y2 * scaleY;
+                const width = x2 - x1;
+                const height = y2 - y1;
+
+                // 根据类别编号生成稳定但不同的颜色。
+                const hue = (box.class_id * 47) % 360;
+                const color = `hsl(${hue} 92% 58%)`;
+
+                // 绘制检测框。
+                context.strokeStyle = color;
+                context.lineWidth = Math.max(3, overlay.width / 360);
+                context.strokeRect(x1, y1, width, height);
+
+                // 准备文字内容，例如“人 92%”。
+                const label = `${box.class_name} ${Math.round(box.confidence * 100)}%`;
+
+                // 测量文字大小，为文字背景准备合适尺寸。
+                const textWidth = context.measureText(label).width;
+                const textHeight = Math.max(24, overlay.width / 35);
+
+                // 在框上方绘制文字背景。
+                context.fillStyle = color;
+                context.fillRect(x1, Math.max(0, y1 - textHeight), textWidth + 18, textHeight);
+
+                // 在背景上绘制深色文字。
+                context.fillStyle = "#06101e";
+                context.fillText(label, x1 + 9, Math.max(textHeight - 5, y1 - 5));
+            }
+        }
+
+        // 把当前视频帧转换成 JPEG 图片。
+        function captureFrame() {
+            return new Promise((resolve, reject) => {
+                // 创建临时画布来抓取当前视频帧。
+                const captureCanvas = document.createElement("canvas");
+                captureCanvas.width = video.videoWidth;
+                captureCanvas.height = video.videoHeight;
+
+                // 把视频当前画面绘制到临时画布。
+                const captureContext = captureCanvas.getContext("2d");
+                captureContext.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+                // 把画布转换为 JPEG 压缩数据，减少传输体积。
+                captureCanvas.toBlob(
+                    (blob) => {
+                        // 成功时把图片数据交给下一步。
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            // 创建图片失败时报告错误。
+                            reject(new Error("无法创建摄像头图片"));
+                        }
+                    },
+                    "image/jpeg",
+                    0.65,
+                );
+            });
+        }
+
+        // 持续抓取视频帧并发送给本机 YOLO 服务。
+        async function detectionLoop() {
+            // 停止摄像头后不再继续检测。
+            if (!running) {
+                return;
+            }
+
+            // 如果上一帧仍在处理，就稍后再试。
+            if (processing || video.readyState < 2) {
+                window.setTimeout(detectionLoop, 35);
+                return;
+            }
+
+            // 标记当前帧正在处理。
+            processing = true;
+
+            try {
+                // 抓取当前视频帧。
+                const imageBlob = await captureFrame();
+
+                // 准备 multipart 表单数据。
+                const formData = new FormData();
+
+                // 使用后端约定的名字 image 上传图片。
+                formData.append("image", imageBlob, "frame.jpg");
+
+                // 把当前帧发送给本机 Flask 服务。
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                // 如果服务返回错误，就读取错误信息。
+                if (!response.ok) {
+                    throw new Error(`检测服务返回 ${response.status}`);
+                }
+
+                // 把服务返回的 JSON 转换成对象。
+                const result = await response.json();
+
+                // 保存推理耗时。
+                lastInferenceMs = result.inference_ms;
+
+                // 在视频上画出检测框。
+                drawBoxes(result);
+
+                // 更新状态文字。
+                setStatus(`实时检测中 · 本帧推理 ${lastInferenceMs.toFixed(1)} ms`);
+            } catch (error) {
+                // 出现错误时在页面中显示原因。
+                setStatus(`检测失败：${error.message}`);
+            } finally {
+                // 允许处理下一帧。
+                processing = false;
+
+                // 如果摄像头仍在运行，就短暂等待后抓取下一帧。
+                if (running) {
+                    window.setTimeout(detectionLoop, 25);
+                }
+            }
+        }
+
+        // 启动浏览器摄像头。
+        async function startCamera() {
+            // 检查浏览器是否支持摄像头接口。
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setStatus("当前浏览器不支持摄像头访问，请使用新版 Edge 或 Chrome。");
+                return;
+            }
+
+            try {
+                // 把按钮切换为不可重复点击的状态。
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                setStatus("正在请求摄像头权限...");
+
+                // 请求摄像头画面，不请求麦克风声音。
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                    },
+                    audio: false,
+                });
+
+                // 把摄像头数据流绑定到 video 元素。
+                video.srcObject = stream;
+
+                // 等待视频开始播放。
+                await video.play();
+
+                // 隐藏启动提示层。
+                placeholder.style.display = "none";
+
+                // 根据视频尺寸调整画布。
+                resizeOverlay();
+
+                // 标记检测循环已经启动。
+                running = true;
+
+                // 开始持续检测。
+                detectionLoop();
+            } catch (error) {
+                // 恢复按钮状态。
+                startButton.disabled = false;
+                stopButton.disabled = true;
+
+                // 显示摄像头打不开的原因。
+                setStatus(`摄像头启动失败：${error.message}`);
+            }
+        }
+
+        // 停止摄像头并释放浏览器资源。
+        function stopCamera() {
+            // 停止检测循环。
+            running = false;
+
+            // 如果存在摄像头数据流，就停止所有轨道。
+            if (stream) {
+                stream.getTracks().forEach((track) => track.stop());
+                stream = null;
+            }
+
+            // 解除 video 元素上的数据流。
+            video.srcObject = null;
+
+            // 清空检测框。
+            context.clearRect(0, 0, overlay.width, overlay.height);
+
+            // 恢复按钮状态。
+            startButton.disabled = false;
+            stopButton.disabled = true;
+
+            // 重新显示启动提示层。
+            placeholder.style.display = "grid";
+
+            // 更新状态文字。
+            setStatus("摄像头已停止");
+        }
+
+        // 视频尺寸变化时重新调整画布。
+        video.addEventListener("loadedmetadata", resizeOverlay);
+
+        // 点击启动按钮时打开摄像头。
+        startButton.addEventListener("click", startCamera);
+
+        // 点击停止按钮时关闭摄像头。
+        stopButton.addEventListener("click", stopCamera);
+
+        // 页面关闭前主动停止摄像头，避免指示灯一直亮着。
+        window.addEventListener("beforeunload", stopCamera);
+
+        // 页面打开后检查后端服务是否可用。
+        fetch("/health")
+            .then((response) => response.json())
+            .then((data) => {
+                // 根据模型加载结果显示状态。
+                setStatus(data.status === "ok" ? `服务已就绪 · ${data.model_name} · ${data.imgsz}px · GPU：${data.cuda ? "可用" : "不可用"}` : "服务状态异常");
+            })
+            .catch(() => setStatus("无法连接本机 YOLO 服务"));
+    </script>
+</body>
+</html>
+
+
