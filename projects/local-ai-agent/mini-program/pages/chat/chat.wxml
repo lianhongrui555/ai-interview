@@ -1,0 +1,53 @@
+<!-- 聊天页面顶部工具栏。 -->
+<view class="toolbar">
+  <view>
+    <view class="title">本地 AI 聊天</view>
+    <view class="subtitle">Dify + Ollama + qwen2.5:7b</view>
+  </view>
+  <button class="new-button" size="mini" bindtap="onNewChat">新对话</button>
+</view>
+
+<!-- 聊天消息滚动区域。 -->
+<scroll-view
+  class="message-list"
+  scroll-y
+  scroll-with-animation
+  scroll-into-view="{{scrollIntoView}}"
+>
+  <!-- 循环显示所有消息。 -->
+  <view
+    wx:for="{{messages}}"
+    wx:key="id"
+    id="msg-{{item.id}}"
+    class="message-row {{item.role}}"
+  >
+    <view class="message-bubble">{{item.content}}</view>
+  </view>
+
+  <!-- 等待模型回答时显示提示。 -->
+  <view wx:if="{{sending}}" class="message-row assistant">
+    <view class="message-bubble thinking">正在思考，请稍候……</view>
+  </view>
+</scroll-view>
+
+<!-- 固定在底部的输入栏。 -->
+<view class="composer">
+  <input
+    class="message-input"
+    value="{{input}}"
+    disabled="{{sending}}"
+    confirm-type="send"
+    placeholder="请输入问题"
+    bindinput="onInput"
+    bindconfirm="onSend"
+  />
+  <button
+    class="send-button"
+    size="mini"
+    type="primary"
+    disabled="{{sending}}"
+    bindtap="onSend"
+  >
+    发送
+  </button>
+</view>

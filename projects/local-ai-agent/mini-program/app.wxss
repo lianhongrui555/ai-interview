@@ -1,0 +1,7 @@
+/* 设置所有页面共用的基础字体和背景颜色。 */
+page {
+  min-height: 100%;
+  color: #172033;
+  background: #eef4ff;
+  font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+}

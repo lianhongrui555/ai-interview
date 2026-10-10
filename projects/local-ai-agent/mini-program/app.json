@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/chat/chat"
+  ],
+  "window": {
+    "navigationBarTitleText": "本地 AI 聊天",
+    "navigationBarBackgroundColor": "#1769e0",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#eef4ff"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,432 @@
+app:
+  description: 输入城市名称，查询该城市的实时天气、体感温度、湿度、风速和天气状况。
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: 实时天气查询
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: start
+        targetType: http-request
+      id: 1791468025306-source-1791468775541-target
+      selected: false
+      source: '1791468025306'
+      sourceHandle: source
+      target: '1791468775541'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: code
+      id: 1791468775541-source-1791469218955-target
+      selected: false
+      source: '1791468775541'
+      sourceHandle: source
+      target: '1791469218955'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: http-request
+      id: 1791469218955-source-1791470255385-target
+      source: '1791469218955'
+      sourceHandle: source
+      target: '1791470255385'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: code
+      id: 1791470255385-source-1791471209317-target
+      source: '1791470255385'
+      sourceHandle: source
+      target: '1791471209317'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: end
+      id: 1791471209317-source-1791471482851-target
+      source: '1791471209317'
+      sourceHandle: source
+      target: '1791471482851'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 用户输入
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: 城市
+          max_length: 50
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: city
+      height: 108
+      id: '1791468025306'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        desc: 查询城市坐标
+        headers: ''
+        isInIteration: null
+        isInLoop: null
+        iteration_id: null
+        loop_id: null
+        method: get
+        params: 'name:{{#1791468025306.city#}}
+
+          count:1
+
+          language:zh
+
+          format:json'
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求
+        type: http-request
+        url: https://geocoding-api.open-meteo.com/v1/search
+        variables: []
+      height: 164
+      id: '1791468775541'
+      position:
+        x: 381
+        y: 281.5
+      positionAbsolute:
+        x: 381
+        y: 281.5
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "import json\n\ndef main(geocode_response) -> dict:\n    # HTTP 节点有时返回对象，有时返回\
+          \ JSON 文本，所以先统一处理。\n    if isinstance(geocode_response, str):\n        data\
+          \ = json.loads(geocode_response)\n    else:\n        data = geocode_response\n\
+          \n    # 取出城市搜索结果；如果结果不是字典，就当作没有找到。\n    results = data.get(\"results\",\
+          \ []) if isinstance(data, dict) else []\n\n    # 找不到城市时返回固定坐标，避免后续 HTTP\
+          \ 节点因为空坐标报错。\n    if not results:\n        return {\n            \"found\"\
+          : False,\n            \"latitude\": 0.0,\n            \"longitude\": 0.0,\n\
+          \            \"city_name\": \"\",\n            \"admin1\": \"\",\n     \
+          \       \"country\": \"\"\n        }\n\n    # 取第一个匹配城市。\n    first = results[0]\n\
+          \n    return {\n        \"found\": True,\n        \"latitude\": float(first.get(\"\
+          latitude\") or 0.0),\n        \"longitude\": float(first.get(\"longitude\"\
+          ) or 0.0),\n        \"city_name\": first.get(\"name\", \"\"),\n        \"\
+          admin1\": first.get(\"admin1\", \"\"),\n        \"country\": first.get(\"\
+          country\", \"\")\n    }\n"
+        code_language: python3
+        desc: 提取城市坐标
+        outputs:
+          admin1:
+            children: null
+            type: string
+          city_name:
+            children: null
+            type: string
+          country:
+            children: null
+            type: string
+          found:
+            children: null
+            type: boolean
+          latitude:
+            children: null
+            type: number
+          longitude:
+            children: null
+            type: number
+        selected: false
+        title: 代码执行
+        type: code
+        variables:
+        - value_selector:
+          - '1791468775541'
+          - body
+          value_type: string
+          variable: geocode_response
+      height: 79
+      id: '1791469218955'
+      position:
+        x: 683
+        y: 281.5
+      positionAbsolute:
+        x: 683
+        y: 281.5
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        desc: 查询实时天气
+        headers: ''
+        method: get
+        params: 'latitude:{{#1791469218955.latitude#}}
+
+          longitude:{{#1791469218955.longitude#}}
+
+          wind_speed_unit:kmh
+
+          timezone:auto
+
+          current:temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m
+
+          temperature_unit:celsius'
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求 2
+        type: http-request
+        url: https://api.open-meteo.com/v1/forecast
+        variables: []
+      height: 164
+      id: '1791470255385'
+      position:
+        x: 984
+        y: 281.5
+      positionAbsolute:
+        x: 984
+        y: 281.5
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "\nimport json\n\n# WMO 天气代码对应的中文说明。\nWEATHER_CODE_MAP = {\n    0: \"\
+          晴朗\",\n    1: \"大部晴朗\",\n    2: \"局部多云\",\n    3: \"阴天\",\n    45: \"有雾\"\
+          ,\n    48: \"雾凇\",\n    51: \"小毛毛雨\",\n    53: \"中等毛毛雨\",\n    55: \"大毛毛雨\"\
+          ,\n    56: \"轻度冻毛毛雨\",\n    57: \"强冻毛毛雨\",\n    61: \"小雨\",\n    63: \"\
+          中雨\",\n    65: \"大雨\",\n    66: \"轻度冻雨\",\n    67: \"强冻雨\",\n    71: \"\
+          小雪\",\n    73: \"中雪\",\n    75: \"大雪\",\n    77: \"雪粒\",\n    80: \"小阵雨\"\
+          ,\n    81: \"中阵雨\",\n    82: \"强阵雨\",\n    85: \"小阵雪\",\n    86: \"大阵雪\"\
+          ,\n    95: \"雷暴\",\n    96: \"雷暴伴小冰雹\",\n    99: \"雷暴伴大冰雹\"\n}\n\ndef main(weather_response,\
+          \ found, city_name, admin1, country) -> dict:\n    # 兼容 Dify 传入布尔值或文字值的情况。\n\
+          \    is_found = found if isinstance(found, bool) else str(found).lower()\
+          \ == \"true\"\n\n    # 找不到城市时，返回完整且匹配的输出字段。\n    if not is_found:\n    \
+          \    error_text = \"没有找到这个城市，请换一个更常见的城市名称，例如北京、上海或广州。\"\n        return\
+          \ {\n            \"weather_text\": error_text,\n            \"temperature\"\
+          : 0.0,\n            \"humidity\": 0.0,\n            \"wind_speed\": 0.0,\n\
+          \            \"description\": \"未找到城市\"\n        }\n\n    # HTTP 节点可能返回\
+          \ JSON 文本或对象，两种都兼容。\n    if isinstance(weather_response, str):\n       \
+          \ data = json.loads(weather_response)\n    else:\n        data = weather_response\n\
+          \n    current = data.get(\"current\", {}) if isinstance(data, dict) else\
+          \ {}\n\n    # 把天气代码转换成整数。\n    try:\n        weather_code = int(current.get(\"\
+          weather_code\"))\n    except (TypeError, ValueError):\n        weather_code\
+          \ = -1\n\n    description = WEATHER_CODE_MAP.get(weather_code, \"未知天气\"\
+          )\n\n    # 拼出国家、省份和城市。\n    location_parts = []\n    if country:\n     \
+          \   location_parts.append(country)\n    if admin1:\n        location_parts.append(admin1)\n\
+          \    if city_name:\n        location_parts.append(city_name)\n\n    location\
+          \ = \" \".join(location_parts) if location_parts else \"该城市\"\n\n    # 把可能为空的数值转成浮点数。\n\
+          \    def to_float(value):\n        try:\n            return float(value)\n\
+          \        except (TypeError, ValueError):\n            return 0.0\n\n   \
+          \ temperature = to_float(current.get(\"temperature_2m\"))\n    feels_like\
+          \ = to_float(current.get(\"apparent_temperature\"))\n    humidity = to_float(current.get(\"\
+          relative_humidity_2m\"))\n    wind_speed = to_float(current.get(\"wind_speed_10m\"\
+          ))\n    data_time = current.get(\"time\", \"未知时间\")\n\n    weather_text\
+          \ = (\n        f\"{location}当前天气：{description}；\"\n        f\"气温 {temperature:.1f}°C；\"\
+          \n        f\"体感温度 {feels_like:.1f}°C；\"\n        f\"相对湿度 {humidity:.0f}%；\"\
+          \n        f\"风速 {wind_speed:.1f} km/h；\"\n        f\"数据时间 {data_time}。\"\
+          \n    )\n\n    return {\n        \"weather_text\": weather_text,\n     \
+          \   \"temperature\": temperature,\n        \"humidity\": humidity,\n   \
+          \     \"wind_speed\": wind_speed,\n        \"description\": description\n\
+          \    }\n"
+        code_language: python3
+        outputs:
+          description:
+            children: null
+            type: string
+          humidity:
+            children: null
+            type: number
+          temperature:
+            children: null
+            type: number
+          weather_text:
+            children: null
+            type: string
+          wind_speed:
+            children: null
+            type: number
+        selected: false
+        title: 代码执行 2
+        type: code
+        variables:
+        - value_selector:
+          - '1791470255385'
+          - body
+          value_type: string
+          variable: weather_response
+        - value_selector:
+          - '1791469218955'
+          - found
+          value_type: boolean
+          variable: found
+        - value_selector:
+          - '1791469218955'
+          - city_name
+          value_type: string
+          variable: city_name
+        - value_selector:
+          - '1791469218955'
+          - admin1
+          value_type: string
+          variable: admin1
+        - value_selector:
+          - '1791469218955'
+          - country
+          value_type: string
+          variable: country
+      height: 51
+      id: '1791471209317'
+      position:
+        x: 1285
+        y: 281.5
+      positionAbsolute:
+        x: 1285
+        y: 281.5
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        outputs:
+        - value_selector:
+          - '1791471209317'
+          - temperature
+          value_type: number
+          variable: temperature
+        - value_selector:
+          - '1791471209317'
+          - humidity
+          value_type: number
+          variable: humidity
+        - value_selector:
+          - '1791471209317'
+          - wind_speed
+          value_type: number
+          variable: wind_speed
+        - value_selector:
+          - '1791471209317'
+          - description
+          value_type: string
+          variable: description
+        - value_selector:
+          - '1791471209317'
+          - weather_text
+          value_type: string
+          variable: weather_text
+        selected: false
+        title: 输出
+        type: end
+      height: 194
+      id: '1791471482851'
+      position:
+        x: 1586
+        y: 281.5
+      positionAbsolute:
+        x: 1586
+        y: 281.5
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    viewport:
+      x: -960.0945362648378
+      y: 161.0662017197639
+      zoom: 0.8705505632961252
+  rag_pipeline_variables: []

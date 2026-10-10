@@ -1,0 +1,113 @@
+/* 页面整体使用浅色背景。 */
+page {
+  background: #eef4ff;
+}
+
+/* 设置顶部工具栏。 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 110rpx;
+  padding: 0 28rpx;
+  color: #ffffff;
+  background: #1769e0;
+  box-sizing: border-box;
+}
+
+/* 设置页面标题。 */
+.title {
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+/* 设置副标题。 */
+.subtitle {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  opacity: 0.9;
+}
+
+/* 设置新对话按钮。 */
+.new-button {
+  color: #1769e0;
+  background: #ffffff;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+}
+
+/* 设置消息列表高度。 */
+.message-list {
+  height: 70vh;
+  padding: 26rpx;
+  box-sizing: border-box;
+}
+
+/* 设置每条消息的布局。 */
+.message-row {
+  display: flex;
+  margin-bottom: 24rpx;
+}
+
+/* 用户消息靠右。 */
+.message-row.user {
+  justify-content: flex-end;
+}
+
+/* 设置消息气泡。 */
+.message-bubble {
+  max-width: 76%;
+  padding: 20rpx 24rpx;
+  color: #27364d;
+  background: #ffffff;
+  border-radius: 24rpx;
+  line-height: 1.6;
+  font-size: 30rpx;
+  word-break: break-all;
+  box-shadow: 0 8rpx 20rpx rgba(44, 75, 117, 0.07);
+}
+
+/* 用户消息气泡使用蓝色。 */
+.message-row.user .message-bubble {
+  color: #ffffff;
+  background: #1769e0;
+}
+
+/* 思考提示使用灰色。 */
+.thinking {
+  color: #74849a;
+}
+
+/* 固定底部输入区域。 */
+.composer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  height: 120rpx;
+  padding: 16rpx 24rpx;
+  background: #ffffff;
+  border-top: 1rpx solid #dce7f5;
+  box-sizing: border-box;
+}
+
+/* 设置输入框。 */
+.message-input {
+  flex: 1;
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: #f5f8fc;
+  border: 1rpx solid #cfdcec;
+  border-radius: 18rpx;
+  font-size: 30rpx;
+}
+
+/* 设置发送按钮。 */
+.send-button {
+  width: 132rpx;
+  margin-left: 18rpx;
+  border-radius: 18rpx;
+  font-size: 28rpx;
+}
